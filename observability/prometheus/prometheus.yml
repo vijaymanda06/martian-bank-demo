@@ -1,0 +1,84 @@
+# Prometheus Configuration for Martian Bank
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'martianbank'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Load alert rules
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    metrics_path: /metrics
+
+  # Node Exporter - Host metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # MongoDB Exporter
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+
+  # Customer Auth Service (Node.js)
+  - job_name: 'customer-auth'
+    static_configs:
+      - targets: ['customer-auth:8000']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # ATM Locator Service (Node.js)
+  - job_name: 'atm-locator'
+    static_configs:
+      - targets: ['atm-locator:8001']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # Dashboard Service (Python/Flask)
+  - job_name: 'dashboard'
+    static_configs:
+      - targets: ['dashboard:5000']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # Accounts Service (Python)
+  - job_name: 'accounts'
+    static_configs:
+      - targets: ['accounts:50051']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # Transactions Service (Python)
+  - job_name: 'transactions'
+    static_configs:
+      - targets: ['transactions:50052']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # Loan Service (Python)
+  - job_name: 'loan'
+    static_configs:
+      - targets: ['loan:50053']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # NGINX Gateway
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:8080']
+    metrics_path: /metrics
+    scrape_interval: 10s

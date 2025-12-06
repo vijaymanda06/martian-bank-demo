@@ -4,22 +4,28 @@ MartianBank is a microservices demo application that simulates an app to allow c
 
 ## Highlights
 
-- Microservices Architecture
-- GitOps deployment with ArgoCD
-- Helm-based configurable deployments (e.g., switching between HTTP and gRPC)
+- Microservices Architecture with 8 containerized services
+- GitOps deployment with ArgoCD (staging + production environments)
+- Helm-based configurable deployments (HTTP/gRPC protocol switching)
 - Docker Compose for local development
-- Automated CI/CD with GitHub Actions
+- Automated CI/CD with GitHub Actions (lint → test → security scan → build → deploy)
+- Observability stack with Prometheus, Grafana, and Alertmanager
+- Rate limiting and authentication middleware
 - Swagger APIs and comprehensive documentation
 - Performance tests with Locust
-- Integration with other open source projects like APIClarity
+- Infrastructure as Code with Terraform (AWS EKS)
+
+📖 **[Architecture Documentation](ARCHITECTURE.md)** - Detailed design decisions and system overview
 
 ## Table of Contents
 
 - [Architecture](#architecture)
 - [Local Development](#local-development)
+- [Observability](#observability)
 - [Running Tests](#running-tests)
 - [Deployment to AWS](#deployment-to-aws)
 - [CI/CD Pipeline](#cicd-pipeline)
+- [Security Features](#security-features)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -102,6 +108,43 @@ To run Locust performance tests:
 docker-compose --profile testing up locust
 ```
 Access Locust UI at http://localhost:8089
+
+## Observability
+
+MartianBank includes a complete observability stack with Prometheus, Grafana, and Alertmanager.
+
+### Start Observability Stack
+
+```bash
+# Start app + observability together
+docker-compose -f docker-compose.yaml -f observability/docker-compose.observability.yaml up -d
+```
+
+### Access Dashboards
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Grafana | http://localhost:3001 | admin / martianbank |
+| Prometheus | http://localhost:9090 | - |
+| Alertmanager | http://localhost:9093 | - |
+
+### Pre-configured Dashboards
+
+- **Martian Bank Overview**: Service health, request rates, latency, error rates
+- **Resource Monitoring**: CPU, memory, disk usage
+- **MongoDB Metrics**: Connections, query rates, performance
+
+### Alerts
+
+Configured alerts include:
+- Service down (critical)
+- High error rate > 5%
+- High latency (p95 > 1s)
+- High memory/CPU usage
+- MongoDB connection issues
+- Transaction failure rate > 1%
+
+See [observability/README.md](observability/README.md) for detailed configuration.
 
 ## Running Tests
 
@@ -277,6 +320,40 @@ helm install martianbank martianbank --set "nginx.enabled=false"
 ```
 
 See `martianbank/values.yaml` for all available options.
+
+## Security Features
+
+MartianBank implements multiple layers of security:
+
+### Rate Limiting
+
+API endpoints are protected with rate limiting:
+- General API: 100 requests/minute per IP
+- Authentication: 10 attempts/15 minutes per IP
+- ATM Search: 60 requests/minute per IP
+
+Rate limiting is implemented at both:
+- **NGINX Gateway**: See `nginx/nginx-ratelimit.conf`
+- **Service Level**: Express middleware in Node.js services
+
+### Authentication
+
+- JWT-based authentication with configurable expiry
+- Password hashing with bcrypt
+- Protected routes via `authMiddleware`
+
+### Container Security
+
+- Non-root user execution (`runAsUser: 1000`)
+- Read-only root filesystem
+- Dropped capabilities
+- Resource limits enforced
+
+### CI/CD Security
+
+- Trivy vulnerability scanning (blocks HIGH/CRITICAL)
+- OIDC authentication (no long-lived AWS credentials)
+- Branch protection with required tests
 
 ## Contributing
 

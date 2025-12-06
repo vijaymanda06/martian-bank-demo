@@ -19,11 +19,13 @@
     "dotenv": "^16.1.4",
     "express": "^4.22.1",
     "express-async-handler": "^1.2.0",
+    "express-rate-limit": "^7.1.5",
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.8.4",
     "morgan": "^1.10.0",
     "nodemon": "^3.1.11",
+    "prom-client": "^15.1.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0"
   },

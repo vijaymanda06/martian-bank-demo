@@ -16,6 +16,8 @@ import colors from 'colors';
 import { swaggerDocs } from './utils/swagger.js';
 
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
+import { metricsMiddleware, metricsEndpoint } from './middleware/metricsMiddleware.js';
+import { apiLimiter, authLimiter } from './middleware/rateLimitMiddleware.js';
 
 import userRoutes from './routes/userRoutes.js';
 
@@ -36,13 +38,22 @@ app.use(cors({credentials: true, origin: true}));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
+// Metrics middleware - collect request metrics
+app.use(metricsMiddleware);
+
+// Rate limiting - apply to all API routes
+app.use('/api', apiLimiter);
+
 // Health check endpoint - unauthenticated for container health checks
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy', service: 'customer-auth' });
+  res.status(200).json({ status: 'healthy', service: 'customer-auth', timestamp: new Date().toISOString() });
 });
 
-// mounting routes
-app.use('/api/users', userRoutes);
+// Prometheus metrics endpoint
+app.get('/metrics', metricsEndpoint);
+
+// mounting routes with auth-specific rate limiting
+app.use('/api/users', authLimiter, userRoutes);
 
 // Swagger documentation
 swaggerDocs(app, port);
