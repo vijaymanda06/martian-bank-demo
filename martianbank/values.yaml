@@ -1,118 +1,255 @@
 # Default values for martianbank.
 # This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
 
-replicaCount: 1
+#######################################################################################
+## Global Configuration
+## Requirements: 8.5
 
-image:
-  repository: nginx
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+global:
+  image:
+    # ECR registry URL - override with your AWS account ECR
+    registry: ""
+    # Image tag - typically set to git SHA during CI/CD
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  # AWS region for service integrations
+  awsRegion: us-west-1
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
+#######################################################################################
+## Service Account Configuration
+## Requirements: 6.2 - IRSA support
 
 serviceAccount:
-  # Specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/martianbank-service-role
   name: ""
 
-podAnnotations: {}
+#######################################################################################
+## Service Configurations
 
-podSecurityContext:
-  {}
-  # fsGroup: 2000
+services:
+  # Python gRPC Services
+  accounts:
+    enabled: true
+    replicas: 2
+    image:
+      repository: accounts
+      tag: ""  # Uses global.image.tag if empty
+    port: 50051
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
 
-securityContext:
-  {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+  loan:
+    enabled: true
+    replicas: 2
+    image:
+      repository: loan
+      tag: ""
+    port: 50053
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
 
-service:
-  type: ClusterIP
-  port: 85
+  transactions:
+    enabled: true
+    replicas: 2
+    image:
+      repository: transactions
+      tag: ""
+    port: 50052
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+
+  dashboard:
+    enabled: true
+    replicas: 2
+    image:
+      repository: dashboard
+      tag: ""
+    port: 5000
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+
+  # Node.js Services
+  customerAuth:
+    enabled: true
+    replicas: 2
+    image:
+      repository: customer-auth
+      tag: ""
+    port: 8000
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+
+  atmLocator:
+    enabled: true
+    replicas: 2
+    image:
+      repository: atm-locator
+      tag: ""
+    port: 8001
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "100m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+
+  # React UI
+  ui:
+    enabled: true
+    replicas: 2
+    image:
+      repository: ui
+      tag: ""
+    port: 80
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+
+
+#######################################################################################
+## Ingress Configuration
+## Requirements: 8.5 - ALB configuration
 
 ingress:
-  enabled: false
-  className: ""
+  enabled: true
+  className: alb
   annotations:
-    {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
   hosts:
-    - host: chart-example.local
+    - host: ""
       paths:
         - path: /
-          pathType: ImplementationSpecific
+          pathType: Prefix
+          service: ui
+        - path: /api/auth
+          pathType: Prefix
+          service: customerAuth
+        - path: /api/atm
+          pathType: Prefix
+          service: atmLocator
   tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
 
-resources:
-  {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+#######################################################################################
+## MongoDB Configuration
+
+mongodb:
+  # Use external MongoDB (DocumentDB or Atlas)
+  enabled: false
+  # For local development with in-cluster MongoDB
+  local:
+    enabled: false
+    image: mongo:7
+    port: 27017
+    storage: 1Gi
+
+# Environment variables for services
+env:
+  SERVICE_PROTOCOL: "http"
+  # DB_URL is injected via External Secrets when externalSecrets.enabled=true
+
+#######################################################################################
+## External Secrets Operator Configuration
+## Syncs secrets from AWS Secrets Manager to Kubernetes Secrets
+## Requirements: 7.1, 7.3
+
+externalSecrets:
+  enabled: false
+  secretStoreName: aws-secrets-manager
+  
+  mongodb:
+    enabled: true
+    secretName: martianbank/prod/mongodb
+    refreshInterval: 1h
+  
+  jwt:
+    enabled: true
+    secretName: martianbank/prod/jwt
+    refreshInterval: 1h
+
+#######################################################################################
+## Pod Security Configuration
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+#######################################################################################
+## Autoscaling Configuration
 
 autoscaling:
   enabled: false
-  minReplicas: 1
-  maxReplicas: 100
+  minReplicas: 2
+  maxReplicas: 10
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+#######################################################################################
+## Node Selection
 
 nodeSelector: {}
-
 tolerations: []
-
 affinity: {}
 
 #######################################################################################
-## Deploy with/without NGINX
+## Legacy Configuration (for backward compatibility)
 
 nginx:
-  ## For API Clairty, you will have to disable nginx by setting enabled to false
-  ##
-  enabled: true
-  ## If enabled is false then deploy the application, get the external IP of dashboard
-  ## service, add it here, and apply the changes. (helm upgrade martianbank martianbank)
-  ##
-  dashboardIP: "<aws external IP url>"
-
-
-
-#######################################################################################
-## Deploy with local MongoDB or with MongoDB Atlas
-
-mongodb:
-  ## For easier development and testing, we deploy MongoDB Atlas instance (enabled: true).
-  ## If you want to use local MongoDB, then set enabled to 'false'
-  ##
   enabled: false
+  dashboardIP: ""
 
-SERVICE_PROTOCOL: "http"
-DB_URL:  
+replicaCount: 1
+nameOverride: ""
+fullnameOverride: ""
+imagePullSecrets: []
+podAnnotations: {}
 
-#######################################################################################
-## Deploy locust
-
-locust: 
-  enabled: false
+# Legacy DB_URL - use externalSecrets instead
+DB_URL: ""

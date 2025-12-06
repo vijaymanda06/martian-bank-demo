@@ -1,0 +1,27 @@
+apiVersion: v2
+name: martianbank-external-secrets
+description: External Secrets configuration for Martian Bank - AWS Secrets Manager integration
+type: application
+version: 0.1.0
+appVersion: "0.9.0"
+
+# This chart provides:
+# - ClusterSecretStore for AWS Secrets Manager
+# - ExternalSecret resources for MongoDB and JWT secrets
+#
+# Prerequisites:
+# - External Secrets Operator must be installed in the cluster
+# - IRSA must be configured for the service account
+#
+# Install ESO first:
+# helm repo add external-secrets https://charts.external-secrets.io
+# helm install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace
+
+keywords:
+  - external-secrets
+  - aws
+  - secrets-manager
+  - kubernetes
+
+maintainers:
+  - name: Martian Bank Team

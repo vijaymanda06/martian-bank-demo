@@ -1,0 +1,4 @@
+# file: /Users/vijay/Downloads/martian-bank-demo/accounts/accounts.py
+# hypothesis_version: 6.148.5
+
+[100, 50051, '/account-detail', '/create-account', '/get-all-accounts', '0.0.0.0', 'DB_URL', 'POST', 'SERVICE_PROTOCOL', 'USD', '__main__', 'account_number', 'account_type', 'accounts', 'address', 'balance', 'bank', 'created_at', 'currency', 'email_id', 'government_id_type', 'govt_id_number', 'grpc', 'http', 'name']

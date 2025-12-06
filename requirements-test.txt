@@ -1,0 +1,19 @@
+# Test dependencies for Python services
+# Used by CI pipeline and local development
+
+# Test framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Property-based testing
+hypothesis>=6.92.0
+
+# Service dependencies (needed for import tests)
+Flask>=2.3.0
+Flask-Cors>=4.0.0
+grpcio>=1.60.0
+grpcio-tools>=1.60.0
+pymongo>=4.6.0
+requests>=2.31.0
+dotmap>=1.3.30
+python-dotenv>=1.0.0

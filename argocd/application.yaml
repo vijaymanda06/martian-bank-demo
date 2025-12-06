@@ -1,0 +1,132 @@
+# ArgoCD Application for Martian Bank
+# This manifest configures ArgoCD to watch and deploy the martianbank Helm chart
+#
+# Prerequisites:
+# 1. ArgoCD installed in the cluster (see install.yaml)
+# 2. Repository access configured in ArgoCD
+#
+# Apply with:
+#   kubectl apply -f argocd/application.yaml
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: martianbank
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: martianbank-project
+    app.kubernetes.io/part-of: martianbank
+spec:
+  description: Martian Bank Demo Application Project
+  
+  # Source repositories allowed for this project
+  sourceRepos:
+    - 'https://github.com/cisco-open/martian-bank-demo.git'
+    - '*'  # Allow all repos for flexibility in forks
+  
+  # Destination clusters and namespaces
+  destinations:
+    - namespace: martianbank
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  
+  # Cluster resource whitelist
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRole
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRoleBinding
+
+  # Namespace resource blacklist (deny dangerous resources)
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: ResourceQuota
+    - group: ''
+      kind: LimitRange
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: martianbank
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: martianbank
+    app.kubernetes.io/part-of: martianbank
+  # Finalizer ensures proper cleanup when application is deleted
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  # Project reference
+  project: martianbank
+  
+  # Source configuration - watches the Helm chart directory
+  source:
+    # Repository URL - update this to your fork if needed
+    repoURL: https://github.com/cisco-open/martian-bank-demo.git
+    targetRevision: main
+    path: martianbank
+    
+    # Helm-specific configuration
+    helm:
+      # Values file to use
+      valueFiles:
+        - values.yaml
+      
+      # Optional: Override values inline (CI will update values.yaml instead)
+      # parameters:
+      #   - name: global.image.tag
+      #     value: "latest"
+  
+  # Destination configuration
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: martianbank
+  
+  # Sync policy - automated GitOps deployment
+  syncPolicy:
+    automated:
+      # Automatically sync when Git changes detected
+      prune: true
+      # Automatically fix drift from desired state
+      selfHeal: true
+      # Allow empty resources (for initial deployment)
+      allowEmpty: false
+    
+    # Sync options
+    syncOptions:
+      # Create namespace if it doesn't exist
+      - CreateNamespace=true
+      # Apply out of sync resources only
+      - ApplyOutOfSyncOnly=true
+      # Respect ignore differences
+      - RespectIgnoreDifferences=true
+      # Server-side apply for better conflict resolution
+      - ServerSideApply=true
+    
+    # Retry configuration for failed syncs
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  
+  # Ignore differences for fields that change at runtime
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers:
+        - /spec/minReplicas
+        - /spec/maxReplicas
+  
+  # Health checks configuration
+  revisionHistoryLimit: 10

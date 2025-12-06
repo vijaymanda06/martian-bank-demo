@@ -1,0 +1,67 @@
+# ArgoCD Installation Manifest for Martian Bank
+# This file provides a reference to the official ArgoCD installation
+# and includes namespace configuration for the EKS cluster.
+#
+# Installation Steps:
+# 1. Create the argocd namespace
+# 2. Apply the official ArgoCD manifests
+# 3. Apply this configuration for any customizations
+#
+# For full installation, run:
+#   kubectl create namespace argocd
+#   kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+#   kubectl apply -f argocd/install.yaml
+#
+# To access ArgoCD UI:
+#   kubectl port-forward svc/argocd-server -n argocd 8080:443
+#   # Get initial admin password:
+#   kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+#
+# For production, expose via LoadBalancer or Ingress:
+#   kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
+  labels:
+    app.kubernetes.io/name: argocd
+    app.kubernetes.io/part-of: martianbank
+
+---
+# ArgoCD Server Configuration
+# Patches the default ArgoCD server for EKS compatibility
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Run ArgoCD server in insecure mode (TLS terminated at ALB/Ingress)
+  server.insecure: "true"
+
+---
+# ArgoCD RBAC Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Default policy for authenticated users
+  policy.default: role:readonly
+  # Admin policy - customize as needed
+  policy.csv: |
+    p, role:admin, applications, *, */*, allow
+    p, role:admin, clusters, *, *, allow
+    p, role:admin, repositories, *, *, allow
+    p, role:admin, logs, *, *, allow
+    p, role:admin, exec, *, */*, allow
+    g, admin, role:admin

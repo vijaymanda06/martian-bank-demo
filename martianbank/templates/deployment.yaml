@@ -1,25 +1,392 @@
+{{/*
+Deployment templates for all Martian Bank services
+Requirements: 6.2, 8.5
+*/}}
+
+{{- $fullName := include "martianbank.fullname" . -}}
+{{- $labels := include "martianbank.labels" . -}}
+{{- $serviceAccountName := include "martianbank.serviceAccountName" . -}}
+
+{{/* Python gRPC Services */}}
+{{- if .Values.services.accounts.enabled }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: loan
+  name: {{ $fullName }}-accounts
   labels:
-    app: loan
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: accounts
 spec:
-  replicas: 1
+  replicas: {{ .Values.services.accounts.replicas | default 2 }}
   selector:
     matchLabels:
-      app: loan
+      {{- include "martianbank.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: accounts
   template:
     metadata:
       labels:
-        app: loan
+        {{- include "martianbank.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: accounts
     spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: loan
-          image: ghcr.io/cisco-open/martian-bank-demo-loan
-          envFrom:
-            - configMapRef:
-                name: configmap-martianbank
+        - name: accounts
+          image: "{{ .Values.global.image.registry }}/{{ .Values.services.accounts.image.repository }}:{{ .Values.services.accounts.image.tag | default .Values.global.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.services.accounts.port }}
+              protocol: TCP
           env:
             - name: SERVICE_PROTOCOL
-              value: {{.Values.SERVICE_PROTOCOL}}
+              value: {{ .Values.env.SERVICE_PROTOCOL | quote }}
+          {{- if .Values.externalSecrets.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ $fullName }}-mongodb-credentials
+          {{- else if .Values.DB_URL }}
+          env:
+            - name: DB_URL
+              value: {{ .Values.DB_URL | quote }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.services.accounts.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+
+
+{{- if .Values.services.loan.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-loan
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: loan
+spec:
+  replicas: {{ .Values.services.loan.replicas | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "martianbank.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: loan
+  template:
+    metadata:
+      labels:
+        {{- include "martianbank.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: loan
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: loan
+          image: "{{ .Values.global.image.registry }}/{{ .Values.services.loan.image.repository }}:{{ .Values.services.loan.image.tag | default .Values.global.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.services.loan.port }}
+              protocol: TCP
+          env:
+            - name: SERVICE_PROTOCOL
+              value: {{ .Values.env.SERVICE_PROTOCOL | quote }}
+          {{- if .Values.externalSecrets.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ $fullName }}-mongodb-credentials
+          {{- end }}
+          resources:
+            {{- toYaml .Values.services.loan.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+
+{{- if .Values.services.transactions.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-transactions
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: transactions
+spec:
+  replicas: {{ .Values.services.transactions.replicas | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "martianbank.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: transactions
+  template:
+    metadata:
+      labels:
+        {{- include "martianbank.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: transactions
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: transactions
+          image: "{{ .Values.global.image.registry }}/{{ .Values.services.transactions.image.repository }}:{{ .Values.services.transactions.image.tag | default .Values.global.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.services.transactions.port }}
+              protocol: TCP
+          env:
+            - name: SERVICE_PROTOCOL
+              value: {{ .Values.env.SERVICE_PROTOCOL | quote }}
+          {{- if .Values.externalSecrets.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ $fullName }}-mongodb-credentials
+          {{- end }}
+          resources:
+            {{- toYaml .Values.services.transactions.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+
+
+{{- if .Values.services.dashboard.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-dashboard
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard
+spec:
+  replicas: {{ .Values.services.dashboard.replicas | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "martianbank.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: dashboard
+  template:
+    metadata:
+      labels:
+        {{- include "martianbank.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: dashboard
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: dashboard
+          image: "{{ .Values.global.image.registry }}/{{ .Values.services.dashboard.image.repository }}:{{ .Values.services.dashboard.image.tag | default .Values.global.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.services.dashboard.port }}
+              protocol: TCP
+          env:
+            - name: SERVICE_PROTOCOL
+              value: {{ .Values.env.SERVICE_PROTOCOL | quote }}
+          {{- if .Values.externalSecrets.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ $fullName }}-mongodb-credentials
+          {{- end }}
+          resources:
+            {{- toYaml .Values.services.dashboard.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+
+{{/* Node.js Services */}}
+{{- if .Values.services.customerAuth.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-customer-auth
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: customer-auth
+spec:
+  replicas: {{ .Values.services.customerAuth.replicas | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "martianbank.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: customer-auth
+  template:
+    metadata:
+      labels:
+        {{- include "martianbank.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: customer-auth
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: customer-auth
+          image: "{{ .Values.global.image.registry }}/{{ .Values.services.customerAuth.image.repository }}:{{ .Values.services.customerAuth.image.tag | default .Values.global.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.services.customerAuth.port }}
+              protocol: TCP
+          {{- if .Values.externalSecrets.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ $fullName }}-mongodb-credentials
+            - secretRef:
+                name: {{ $fullName }}-jwt-config
+          {{- end }}
+          resources:
+            {{- toYaml .Values.services.customerAuth.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+
+
+{{- if .Values.services.atmLocator.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-atm-locator
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: atm-locator
+spec:
+  replicas: {{ .Values.services.atmLocator.replicas | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "martianbank.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: atm-locator
+  template:
+    metadata:
+      labels:
+        {{- include "martianbank.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: atm-locator
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: atm-locator
+          image: "{{ .Values.global.image.registry }}/{{ .Values.services.atmLocator.image.repository }}:{{ .Values.services.atmLocator.image.tag | default .Values.global.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.services.atmLocator.port }}
+              protocol: TCP
+          {{- if .Values.externalSecrets.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ $fullName }}-mongodb-credentials
+          {{- end }}
+          resources:
+            {{- toYaml .Values.services.atmLocator.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+
+{{/* React UI */}}
+{{- if .Values.services.ui.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}-ui
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+spec:
+  replicas: {{ .Values.services.ui.replicas | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "martianbank.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ui
+  template:
+    metadata:
+      labels:
+        {{- include "martianbank.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ui
+    spec:
+      serviceAccountName: {{ $serviceAccountName }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: ui
+          image: "{{ .Values.global.image.registry }}/{{ .Values.services.ui.image.repository }}:{{ .Values.services.ui.image.tag | default .Values.global.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.services.ui.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.services.ui.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

@@ -2,5 +2,6 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-FROM --platform=linux/amd64 nginx
+# Removed --platform flag to support both AMD64 and ARM64 (Apple Silicon)
+FROM nginx:1.27-alpine
 COPY ./default.conf /etc/nginx/conf.d/

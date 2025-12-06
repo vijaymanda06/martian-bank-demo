@@ -1,0 +1,72 @@
+# External Secrets Operator Helm Values
+# This file configures the External Secrets Operator for AWS Secrets Manager integration
+#
+# Requirements: 7.1, 7.3
+
+# Override names
+nameOverride: ""
+fullnameOverride: ""
+
+# AWS Configuration
+aws:
+  # AWS region where Secrets Manager secrets are stored
+  region: us-west-1
+  # Optional: IAM role ARN for cross-account access
+  # role: arn:aws:iam::ACCOUNT_ID:role/external-secrets-role
+
+# Service account configuration for IRSA
+serviceAccount:
+  create: true
+  name: external-secrets
+  annotations: {}
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/external-secrets-role
+
+# External Secrets Configuration
+externalSecrets:
+  # MongoDB credentials from AWS Secrets Manager
+  mongodb:
+    enabled: true
+    # Name of the secret in AWS Secrets Manager
+    # Format: {project_name}/{environment}/mongodb
+    secretName: martianbank/prod/mongodb
+    # How often to sync the secret
+    refreshInterval: 1h
+
+  # JWT configuration from AWS Secrets Manager
+  jwt:
+    enabled: true
+    # Name of the secret in AWS Secrets Manager
+    # Format: {project_name}/{environment}/jwt
+    secretName: martianbank/prod/jwt
+    # How often to sync the secret
+    refreshInterval: 1h
+
+# Resource limits for ESO pods (when deploying ESO itself)
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+# Pod security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Log level (debug, info, warn, error)
+logLevel: info
+
+# Number of replicas
+replicaCount: 1
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}

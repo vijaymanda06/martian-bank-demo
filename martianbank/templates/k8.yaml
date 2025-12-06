@@ -1,216 +1,52 @@
+{{/*
+Legacy Kubernetes resources - kept for backward compatibility
+These are only deployed when nginx.enabled is true (legacy mode)
+For new deployments, use the unified deployment.yaml and service.yaml templates
+*/}}
+
+{{- if and .Values.nginx (eq .Values.nginx.enabled true) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: ui
+    name: ui-legacy
     labels:
-        app: ui
+        app: ui-legacy
 spec:
     replicas: 1
     selector:
         matchLabels:
-            app: ui
+            app: ui-legacy
     template:
         metadata:
             labels:
-                app: ui
+                app: ui-legacy
         spec:
             containers:
                 - name: ui
                   image: ghcr.io/cisco-open/martian-bank-demo-ui
                   env: 
-                    {{- if .Values.nginx.enabled }}
-                      - name: VITE_USERS_URL
-                        value: /api/users
-                      - name: VITE_ATM_URL
-                        value: /api/atm
-                      - name: VITE_ACCOUNTS_URL
-                        value: /api/account
-                      - name: VITE_TRANSFER_URL
-                        value: /api/transaction
-                      - name: VITE_LOAN_URL
-                        value: /api/loan
-                    {{- else }}
-                      - name: VITE_USERS_URL
-                        value: http://{{ .Values.nginx.dashboardIP }}:5000/api/users
-                      - name: VITE_ATM_URL
-                        value: http://{{ .Values.nginx.dashboardIP }}:5000/api/atm/
-                      - name: VITE_ACCOUNTS_URL
-                        value: http://{{ .Values.nginx.dashboardIP }}:5000/account/
-                      - name: VITE_TRANSFER_URL
-                        value: http://{{ .Values.nginx.dashboardIP }}:5000/transaction/
-                      - name: VITE_LOAN_URL
-                        value: http://{{ .Values.nginx.dashboardIP }}:5000/loan/
-                    {{- end }}
+                    - name: VITE_USERS_URL
+                      value: /api/users
+                    - name: VITE_ATM_URL
+                      value: /api/atm
+                    - name: VITE_ACCOUNTS_URL
+                      value: /api/account
+                    - name: VITE_TRANSFER_URL
+                      value: /api/transaction
+                    - name: VITE_LOAN_URL
+                      value: /api/loan
 ---
 apiVersion: v1
 kind: Service
 metadata:
-    name: ui
+    name: ui-legacy
 spec:
-    {{- if not .Values.nginx.enabled }}
-    type: LoadBalancer
-    {{- end }}
     selector:
-        app: ui
+        app: ui-legacy
     ports:
         - protocol: TCP
           port: 3000
           targetPort: 3000
-
-
-
-# dashboard
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-    name: dashboard
-    labels:
-        app: dashboard
-spec:
-    replicas: 1
-    selector:
-        matchLabels:
-            app: dashboard
-    template:
-        metadata:
-            labels:
-                app: dashboard
-        spec:
-            containers:
-                - name: dashboard
-                  image: ghcr.io/cisco-open/martian-bank-demo-dashboard
-                  env:
-                      - name: SERVICE_PROTOCOL
-                        value: {{.Values.SERVICE_PROTOCOL}}
-                      - name: ACCOUNT_HOST
-                        value: accounts
-                      - name: LOAN_HOST
-                        value: loan
-                      - name: TRANSACTION_HOST
-                        value: transactions
-                      - name: CUSTOMER_AUTH_HOST
-                        value: customer-auth
-                      - name: ATM_LOCATOR_HOST
-                        value: atm-locator
-                  envFrom:
-                      - configMapRef:
-                          name: configmap-martianbank
----
-apiVersion: v1
-kind: Service
-metadata:
-    name: dashboard
-spec:
-    type: LoadBalancer
-    selector:
-        app: dashboard
-    ports:
-        - protocol: TCP
-          port: 5000
-          targetPort: 5000
-
-
-  
-# customer-auth
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-    name: customer-auth
-    labels:
-        app: customer-auth
-spec:    
-    replicas: 1
-    selector:
-        matchLabels:
-            app: customer-auth
-    template:
-        metadata:
-            labels:
-                app: customer-auth
-        spec:
-            containers:
-                - name: customer-auth
-                  image: ghcr.io/cisco-open/martian-bank-demo-customer-auth
-                  env:
-                    {{- if not .Values.mongodb.enabled }}
-                      - name: DATABASE_HOST
-                        value: "root:example@mongodb"
-                    {{- end }}
-                      - name: NODE_ENV
-                        value: production
-                      - name: PORT 
-                        value: "8000"
-                  envFrom:
-                      - configMapRef:
-                          name: configmap-martianbank
----
-apiVersion: v1
-kind: Service
-metadata:
-    name: customer-auth
-spec:
-    selector:
-        app: customer-auth
-    ports:
-        - protocol: TCP
-          port: 8000
-          targetPort: 8000
-
-
-
-# atm-locator
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-    name: atm-locator
-    labels:
-        app: atm-locator
-spec:
-    replicas: 1
-    selector:
-        matchLabels:
-            app: atm-locator
-    template:
-        metadata:
-            labels:
-                app: atm-locator
-        spec:
-            containers:
-                - name: atm-locator
-                  image: ghcr.io/cisco-open/martian-bank-demo-atm-locator
-                  env:
-                    {{- if not .Values.mongodb.enabled }}
-                      - name: DATABASE_HOST
-                        value: "root:example@mongodb"
-                    {{- end }}
-                      - name: NODE_ENV
-                        value: production
-                      - name: PORT 
-                        value: "8001"
-                  envFrom:
-                      - configMapRef:
-                          name: configmap-martianbank
----
-apiVersion: v1
-kind: Service
-metadata:
-    name: atm-locator
-spec:
-    selector:
-        app: atm-locator
-    ports:
-        - protocol: TCP
-          port: 8001
-          targetPort: 8001
-
-
-
-
-{{- if .Values.nginx.enabled }}
-# nginx
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -246,9 +82,7 @@ spec:
           targetPort: 8080
 {{- end }}
 
-
-{{- if .Values.locust.enabled }}
-# locust
+{{- if and .Values.locust .Values.locust.enabled }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -293,4 +127,3 @@ spec:
           port: 8098
           targetPort: 8098
 {{- end }}
-

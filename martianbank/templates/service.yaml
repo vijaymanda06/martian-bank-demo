@@ -1,12 +1,157 @@
+{{/*
+Service templates for all Martian Bank services
+Requirements: 8.5
+*/}}
+
+{{- $fullName := include "martianbank.fullname" . -}}
+
+{{/* Python gRPC Services */}}
+{{- if .Values.services.accounts.enabled }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-    name: loan
+  name: {{ $fullName }}-accounts
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: accounts
 spec:
-    selector:
-        app: loan
-    ports:
-        - protocol: TCP
-          port: 50053
-          targetPort: 50053
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.services.accounts.port }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "martianbank.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: accounts
+{{- end }}
+
+{{- if .Values.services.loan.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-loan
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: loan
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.services.loan.port }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "martianbank.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: loan
+{{- end }}
+
+{{- if .Values.services.transactions.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-transactions
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: transactions
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.services.transactions.port }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "martianbank.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: transactions
+{{- end }}
+
+
+{{- if .Values.services.dashboard.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-dashboard
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.services.dashboard.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "martianbank.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard
+{{- end }}
+
+{{/* Node.js Services */}}
+{{- if .Values.services.customerAuth.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-customer-auth
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: customer-auth
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.services.customerAuth.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "martianbank.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: customer-auth
+{{- end }}
+
+{{- if .Values.services.atmLocator.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-atm-locator
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: atm-locator
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.services.atmLocator.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "martianbank.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: atm-locator
+{{- end }}
+
+{{/* React UI */}}
+{{- if .Values.services.ui.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}-ui
+  labels:
+    {{- include "martianbank.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.services.ui.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "martianbank.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: ui
+{{- end }}

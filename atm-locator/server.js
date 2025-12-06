@@ -36,6 +36,11 @@ app.use(cors({credentials: true, origin: true}));
 app.use(cookieParser());
 app.use(morgan("dev"));
 
+// Health check endpoint - unauthenticated for container health checks
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'healthy', service: 'atm-locator' });
+});
+
 // mounting routes
 app.use("/api/atm", atmRoutes);
 
